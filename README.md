@@ -62,6 +62,12 @@ npm run preview
 
 `npm run build` runs the strict typecheck before bundling. Vitest runs calculation, validation, and mock REST tests. See [DEMO_GUIDE.md](./DEMO_GUIDE.md) for a walkthrough and state scenarios.
 
+## Deploy to Netlify
+
+The repository includes `netlify.toml`. Netlify should use the repository root as the base directory; the config runs `npm run build`, publishes `dist`, deploys the mock API functions, and routes the SPA and `/api/*` paths. Do not set the publish directory to the repository root or `src`. After changing this configuration, trigger a new deployment and verify the deployed page loads JavaScript from `/assets/` rather than `/src/main.tsx`.
+
+Mock endpoints on Netlify are serverless functions and use simulated records only. Local development continues to use MSW interception; `vite preview` serves the same endpoint contract through preview middleware.
+
 ## Data integrity rules
 
 - Revenue excludes Cancelled orders; order count includes every order.

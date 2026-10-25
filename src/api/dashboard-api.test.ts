@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { fetchDashboardData } from './dashboard-api.ts';
+import ordersFunction from '../../netlify/functions/orders.ts';
 import { handlers } from '../mocks/handlers.ts';
 
 const server = setupServer(...handlers);
@@ -45,5 +46,17 @@ describe('mock dashboard REST API', () => {
     const response = await fetch('http://localhost/api/orders?range=14&scenario=success');
 
     expect(response.status).toBe(400);
+  });
+
+  it('serves the same validated mock data through the Netlify function handler', async () => {
+    const response = await ordersFunction(
+      new Request('https://nexora-dashboard.netlify.app/api/orders?range=7&scenario=success'),
+    );
+    const records: unknown = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(Array.isArray(records)).toBe(true);
+    expect(records).toHaveLength(20);
+    expect(response.headers.get('content-type')).toContain('application/json');
   });
 });

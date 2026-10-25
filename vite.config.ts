@@ -1,8 +1,11 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import type { Connect, Plugin } from 'vite';
-import { orders, alertsSeed, activity, filterOrdersByRange } from './src/data.ts';
-import { isValidRange } from './src/utils.ts';
+import { getMockApiResponse, type MockResource } from './src/api/mock-responses.ts';
+
+function isMockResource(value: string): value is MockResource {
+  return value === 'orders' || value === 'alerts' || value === 'activity';
+}
 
 function mockApiMiddleware(): Connect.NextHandleFunction {
   return (request, response, next) => {
@@ -12,40 +15,19 @@ function mockApiMiddleware(): Connect.NextHandleFunction {
     }
 
     const url = new URL(request.url, 'http://localhost');
-    const endpoint = url.pathname;
-    if (!['/api/orders', '/api/alerts', '/api/activity'].includes(endpoint)) {
+    const endpoint = url.pathname.replace(/^\/api\//, '');
+    if (!isMockResource(endpoint)) {
       next();
       return;
     }
 
-    const rawRange = url.searchParams.get('range');
-    const scenario = url.searchParams.get('scenario') ?? 'success';
-    if (!isValidRange(rawRange)) {
-      response.statusCode = 400;
-      response.end(JSON.stringify({ message: 'Supported ranges are 7, 30, and 90 days.' }));
-      return;
-    }
-    if (!['success', 'empty', 'error'].includes(scenario)) {
-      response.statusCode = 400;
-      response.end(JSON.stringify({ message: 'Unsupported demo response scenario.' }));
-      return;
-    }
-    if (scenario === 'error') {
-      response.statusCode = 503;
-      response.end(JSON.stringify({ message: 'Simulated service interruption.' }));
-      return;
-    }
-
-    const body = scenario === 'empty'
-      ? []
-      : endpoint === '/api/orders'
-        ? filterOrdersByRange(orders, rawRange)
-        : endpoint === '/api/alerts'
-          ? alertsSeed
-          : activity;
-    response.setHeader('Content-Type', 'application/json; charset=utf-8');
-    response.setHeader('Cache-Control', 'no-store');
-    response.end(JSON.stringify(body));
+    const mockResponse = getMockApiResponse(endpoint, url);
+    response.statusCode = mockResponse.status;
+    mockResponse.headers.forEach((value, key) => response.setHeader(key, value));
+    void mockResponse.text().then(
+      (body) => response.end(body),
+      (error: unknown) => next(error),
+    );
   };
 }
 
